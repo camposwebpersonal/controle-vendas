@@ -134,6 +134,7 @@ tr:hover td{background:rgba(59,130,246,.04)}
   </div>
 </div>
 <div id="toast"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script type="module">
 import{initializeApp}from"https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
 import{getAuth,onAuthStateChanged,signInWithEmailAndPassword,signOut}from"https://www.gstatic.com/firebasejs/11.8.1/firebase-auth.js";
@@ -210,7 +211,7 @@ function renderProdutos(){
     let estBadge='';
     if(est<=0)estBadge='<span style="color:var(--danger);font-size:11px;font-weight:700">⚠️ SEM ESTOQUE</span>';
     else if(crit>0&&est<=crit)estBadge='<span style="color:var(--warning);font-size:11px;font-weight:700">⚠️ ESTOQUE CRÍTICO</span>';
-    const entHtml=ents.length?`<table class="sub-table"><thead><tr><th>Data</th><th>Qtd</th><th>Compra</th><th>Venda</th></tr></thead><tbody>${ents.map(e=>`<tr><td>${fmtD(e.data)}</td><td>${e.quantidade}</td><td>${fmtN(e.precoCompra)}</td><td>${fmtN(e.precoVenda)}</td></tr>`).join('')}</tbody></table>`:'';
+    const entHtml=ents.length?`<table class="sub-table"><thead><tr><th>Data</th><th>Qtd</th><th>Compra</th><th>Venda</th><th style="width:40px"></th></tr></thead><tbody>${ents.map(e=>`<tr><td>${fmtD(e.data)}</td><td>${e.quantidade}</td><td>${fmtN(e.precoCompra)}</td><td>${fmtN(e.precoVenda)}</td><td><button class="btn-action secondary" style="padding:2px 6px;font-size:10px" onclick="event.stopPropagation();openEntradaModal('${p.id}','${e.id}')">✏️</button></td></tr>`).join('')}</tbody></table>`:'';
     return`<tr>
       <td><strong>${esc(p.nome)}</strong><br><small style="color:#64748b">${esc(p.categoria||'')}</small>${entHtml}</td>
       <td style="color:${est<=0?'var(--danger)':(crit>0&&est<=crit)?'var(--warning)':'var(--success)'};font-weight:800;font-size:18px">${est}${estBadge?'<br>'+estBadge:''}</td>
@@ -248,27 +249,30 @@ window.saveProduto=async(id)=>{
 };
 window.deleteProduto=async(id)=>{if(!confirm('Excluir este produto e todas as suas compras?'))return;try{await deleteDoc(doc(db,'produtos',id));const ents=S.entradas.filter(e=>e.produtoId===id);for(const e of ents){await deleteDoc(doc(db,'entradas',e.id));}toast('Produto excluído.');await loadAll();if(curView==='prod')renderProdutos();else renderDash();}catch(e){toast(e.message,'error');}};
 
-window.openEntradaModal=function(pid){
+window.openEntradaModal=function(pid,eid){
   const p=S.produtos.find(x=>x.id===pid);if(!p)return;
-  document.getElementById('modal-ttl').textContent=`+ Compra — ${esc(p.nome)}`;
+  const e=eid?S.entradas.find(x=>x.id===eid):null;
+  document.getElementById('modal-ttl').textContent=eid?`Editar Compra — ${esc(p.nome)}`:`+ Compra — ${esc(p.nome)}`;
   document.getElementById('modal-body').innerHTML=`<div class="form-grid">
-    <div class="form-group"><label>Preço de Compra (R$)</label><input id="e-compra" type="number" step="0.01" placeholder="Ex: 50,00"></div>
-    <div class="form-group"><label>Preço de Venda (R$)</label><input id="e-venda" type="number" step="0.01" placeholder="Ex: 100,00"></div>
-    <div class="form-group"><label>Quantidade</label><input id="e-qtd" type="number" value="1"></div>
-    <div class="form-group"><label>Data</label><input id="e-data" type="date" value="${new Date().toISOString().substring(0,10)}"></div>
+    <div class="form-group"><label>Preço de Compra (R$)</label><input id="e-compra" type="number" step="0.01" value="${esc(e?.precoCompra||'')}" placeholder="Ex: 50,00"></div>
+    <div class="form-group"><label>Preço de Venda (R$)</label><input id="e-venda" type="number" step="0.01" value="${esc(e?.precoVenda||'')}" placeholder="Ex: 100,00"></div>
+    <div class="form-group"><label>Quantidade</label><input id="e-qtd" type="number" value="${esc(e?.quantidade||'1')}"></div>
+    <div class="form-group"><label>Data</label><input id="e-data" type="date" value="${e&&e.data?e.data.substring(0,10):new Date().toISOString().substring(0,10)}"></div>
   </div><div class="modal-actions">
     <button class="btn-action secondary" onclick="closeModal()">Cancelar</button>
-    <button class="btn-action" onclick="saveEntrada('${pid}')">Salvar</button>
+    ${eid?'<button class="btn-action danger" onclick="deleteEntrada(\''+eid+'\')">Excluir</button>':''}
+    <button class="btn-action" onclick="saveEntrada('${pid}','${eid||''}')">Salvar</button>
   </div>`;
   document.getElementById('modal-ov').style.display='flex';
 };
-window.saveEntrada=async(pid)=>{
-  const data={produtoId:pid,precoCompra:Number(document.getElementById('e-compra').value)||0,precoVenda:Number(document.getElementById('e-venda').value)||0,quantidade:Number(document.getElementById('e-qtd').value)||0,data:document.getElementById('e-data').value,createdAt:serverTimestamp()};
+window.saveEntrada=async(pid,eid)=>{
+  const data={produtoId:pid,precoCompra:Number(document.getElementById('e-compra').value)||0,precoVenda:Number(document.getElementById('e-venda').value)||0,quantidade:Number(document.getElementById('e-qtd').value)||0,data:document.getElementById('e-data').value,updatedAt:serverTimestamp()};
   if(data.quantidade<1){toast('Quantidade deve ser maior que 0.','error');return;}
-  try{await addDoc(collection(db,'entradas'),data);toast('Compra registrada!');}
+  try{if(eid){await updateDoc(doc(db,'entradas',eid),data);toast('Compra atualizada!');}else{data.createdAt=serverTimestamp();await addDoc(collection(db,'entradas'),data);toast('Compra registrada!');}}
   catch(e){toast(e.message,'error');return;}
   closeModal();await loadAll();renderProdutos();
 };
+window.deleteEntrada=async(eid)=>{if(!confirm('Excluir esta compra?'))return;try{await deleteDoc(doc(db,'entradas',eid));toast('Compra excluída.');closeModal();await loadAll();renderProdutos();}catch(e){toast(e.message,'error');}};
 
 function renderClientes(){
   const rows=S.clientes.map(c=>`<tr><td><strong>${esc(c.nome)}</strong></td><td>${esc(c.telefone||'—')}</td><td>${esc(c.email||'—')}</td><td>${esc(c.endereco||'—')}</td>
@@ -442,6 +446,7 @@ function renderRelatorios(){
     <div class="filter-bar" style="margin-bottom:14px">
       <select id="rel-tipo" onchange="renderRelatorios()"><option value="mensal" ${tipo==='mensal'?'selected':''}>Mensal</option><option value="semanal" ${tipo==='semanal'?'selected':''}>Semanal</option><option value="anual" ${tipo==='anual'?'selected':''}>Anual</option></select>
       <select id="rel-status" onchange="renderRelatorios()"><option value="">Todos (exceto cancelados)</option><option value="pago" ${statusF==='pago'?'selected':''}>Pagos</option><option value="pendente" ${statusF==='pendente'?'selected':''}>Pendentes</option></select>
+      <button class="btn-action secondary" onclick="gerarPdfRelatorio()">📄 Gerar PDF</button>
     </div>
     <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px">
       <div class="stat-card" style="flex:1;min-width:120px"><div class="stat-val" style="color:var(--danger)">${fmtN(tComprado)}</div><div class="stat-lbl">Total Comprado</div></div>
@@ -450,6 +455,62 @@ function renderRelatorios(){
     </div>
     <div class="table-wrap"><table><thead><tr><th>Produto</th><th>Qtd</th><th>Comprado</th><th>Vendido</th><th>Desconto</th><th>Lucro</th></tr></thead><tbody>${linhas||'<tr><td colspan="6" class="empty">Nenhuma venda no período.</td></tr>'}</tbody></table></div>`);
 }
+
+window.gerarPdfRelatorio=function(){
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+  const tipo=document.getElementById('rel-tipo')?.value||'mensal';
+  const statusF=document.getElementById('rel-status')?.value||'';
+  let vendasFiltradas=S.vendas.filter(v=>v.status!=='cancelado');
+  if(statusF)vendasFiltradas=vendasFiltradas.filter(v=>v.status===statusF);
+  const hoje=new Date();
+  let inicioPeriodo,fimPeriodo;
+  if(tipo==='semanal'){const d=new Date(hoje);d.setDate(d.getDate()-d.getDay());inicioPeriodo=new Date(d);fimPeriodo=new Date(d);fimPeriodo.setDate(fimPeriodo.getDate()+6);}
+  else if(tipo==='anual'){inicioPeriodo=new Date(hoje.getFullYear(),0,1);fimPeriodo=new Date(hoje.getFullYear(),11,31);}
+  else{inicioPeriodo=new Date(hoje.getFullYear(),hoje.getMonth(),1);fimPeriodo=new Date(hoje.getFullYear(),hoje.getMonth()+1,0);}
+  vendasFiltradas=vendasFiltradas.filter(v=>{const d=new Date(v.data);d.setHours(0,0,0,0);return d>=inicioPeriodo&&d<=fimPeriodo;});
+
+  const prodMap={};
+  for(const v of vendasFiltradas){for(const it of (v.itens||[])){if(!prodMap[it.produtoId])prodMap[it.produtoId]={nome:it.nome||'—',qtd:0,totalVendido:0,totalComprado:0,desconto:0,lucro:0};const p=prodMap[it.produtoId];p.qtd+=it.qtd;p.totalVendido+=it.qtd*it.preco;const ents=getEntradasProduto(it.produtoId);if(ents.length){const e=ents.find(x=>x.id===it.entradaId)||ents[0];p.totalComprado+=it.qtd*e.precoCompra;}}}
+  const totalDesconto=vendasFiltradas.reduce((a,v)=>a+((Number(v.total)||0)-(Number(v.totalComDesconto||v.total)||0)),0);
+  for(const v of vendasFiltradas){for(const pid in prodMap){if(!v.itens||!v.itens.find(i=>i.produtoId===pid))continue;const p=prodMap[pid];const itTotal=v.itens.filter(i=>i.produtoId===pid).reduce((a,it)=>a+(it.qtd*it.preco),0);const share=itTotal/(Number(v.total)||1);p.desconto+=totalDesconto*share;p.lucro=p.totalVendido-p.totalComprado-p.desconto;}}
+  const linhas=Object.values(prodMap);
+  const tComprado=linhas.reduce((a,p)=>a+p.totalComprado,0);
+  const tVendido=linhas.reduce((a,p)=>a+p.totalVendido,0);
+  const tLucro=linhas.reduce((a,p)=>a+p.lucro,0);
+
+  doc.setFontSize(18);doc.text('Relatório de Vendas',105,20,{align:'center'});
+  doc.setFontSize(11);doc.text(`Período: ${fmtD(inicioPeriodo)} até ${fmtD(fimPeriodo)} — ${tipo.toUpperCase()}`,105,28,{align:'center'});
+  doc.setFontSize(11);doc.text(`Status: ${statusF?statusF.toUpperCase():'TODOS (exceto cancelados)'}`,105,34,{align:'center'});
+  doc.setFontSize(10);doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')}`,105,40,{align:'center'});
+
+  doc.setFontSize(10);doc.setTextColor(60,60,60);
+  doc.text(`Total Comprado: ${fmtN(tComprado)}`,14,52);
+  doc.text(`Total Vendido: ${fmtN(tVendido)}`,75,52);
+  doc.text(`Lucro Líquido: ${fmtN(tLucro)}`,140,52);
+
+  const cols=[14,70,90,115,140,170];
+  const colW=[56,20,25,25,30,20];
+  let y=62;
+  doc.setFillColor(240,240,240);doc.rect(14,y-4,182,7,'F');
+  doc.setFontSize(9);doc.setTextColor(0,0,0);
+  const headers=['Produto','Qtd','Comprado','Vendido','Desconto','Lucro'];
+  headers.forEach((h,i)=>{doc.text(h,cols[i]+(i===0?0:colW[i]/2),y,{align:i===0?'left':'center'});});
+  y+=8;
+  doc.setFontSize(8);doc.setTextColor(50,50,50);
+  if(!linhas.length){doc.text('Nenhuma venda no período.',105,y,{align:'center'});}
+  else{for(const p of linhas){if(y>280){doc.addPage();y=14;}
+    doc.text(p.nome.substring(0,32),cols[0],y);
+    doc.text(String(p.qtd),cols[1]+colW[1]/2,y,{align:'center'});
+    doc.text(fmtN(p.totalComprado).replace('R$',''),cols[2]+colW[2]/2,y,{align:'center'});
+    doc.text(fmtN(p.totalVendido).replace('R$',''),cols[3]+colW[3]/2,y,{align:'center'});
+    doc.text(fmtN(p.desconto).replace('R$',''),cols[4]+colW[4]/2,y,{align:'center'});
+    doc.text(fmtN(p.lucro).replace('R$',''),cols[5]+colW[5]/2,y,{align:'center'});
+    y+=6;
+    if(y>280){doc.addPage();y=14;}
+  }}
+  doc.save(`relatorio-${tipo}-${new Date().toISOString().substring(0,10)}.pdf`);
+};
 </script>
 </body>
 </html>
