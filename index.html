@@ -96,10 +96,9 @@ tr:hover td{background:rgba(59,130,246,.04)}
     <div style="font-size:60px;margin-bottom:10px">🛒</div>
     <h1>Controle de Vendas</h1>
     <p>Gerencie seus produtos, clientes e vendas</p>
-    <input type="email" id="loginEmail" placeholder="E-mail">
+    <input type="email" id="loginEmail" placeholder="E-mail" value="isnarcampostavares@gmail.com">
     <input type="password" id="loginSenha" placeholder="Senha">
     <button onclick="doLogin()">Entrar</button>
-    <div style="margin-top:12px;font-size:12px;color:var(--muted)">Não tem conta? <a href="#" onclick="doRegister()" style="color:var(--accent)">Criar conta</a></div>
   </div>
 </div>
 <div class="modal-overlay" id="modal-ov" onclick="if(event.target===this)closeModal()">
@@ -111,7 +110,7 @@ tr:hover td{background:rgba(59,130,246,.04)}
 <div id="toast"></div>
 <script type="module">
 import{initializeApp}from"https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
-import{getAuth,onAuthStateChanged,signInWithEmailAndPassword,signOut,createUserWithEmailAndPassword}from"https://www.gstatic.com/firebasejs/11.8.1/firebase-auth.js";
+import{getAuth,onAuthStateChanged,signInWithEmailAndPassword,signOut}from"https://www.gstatic.com/firebasejs/11.8.1/firebase-auth.js";
 import{getFirestore,collection,doc,addDoc,updateDoc,deleteDoc,getDocs,query,orderBy,serverTimestamp}from"https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore.js";
 
 const FB={apiKey:"AIzaSyBoKUvcHVPsdhN3_19Vtxqm59_CRH9gVOA",authDomain:"controle-vendas-17c17.firebaseapp.com",projectId:"controle-vendas-17c17",storageBucket:"controle-vendas-17c17.firebasestorage.app",messagingSenderId:"505075319497",appId:"1:505075319497:web:c9d2f00caa18c268fc0318"};
@@ -125,7 +124,6 @@ const setC=h=>document.getElementById('content').innerHTML=h;
 
 window.doLogin=async()=>{const e=document.getElementById('loginEmail').value.trim();const p=document.getElementById('loginSenha').value;if(!e||!p){toast('Preencha e-mail e senha.','error');return;}try{await signInWithEmailAndPassword(auth,e,p);}catch(err){toast(err.message,'error');}};
 window.doLogout=()=>signOut(auth);
-window.doRegister=async()=>{const e=document.getElementById('loginEmail').value.trim();const p=document.getElementById('loginSenha').value;if(!e||!p){toast('Preencha e-mail e senha.','error');return;}try{await createUserWithEmailAndPassword(auth,e,p);toast('Conta criada!');}catch(err){toast(err.message,'error');}};
 
 onAuthStateChanged(auth,u=>{
   if(!u){document.getElementById('loginScreen').style.display='flex';document.getElementById('app').style.display='none';return;}
