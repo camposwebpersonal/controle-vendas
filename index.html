@@ -341,7 +341,7 @@ function refreshVendaItens(){
   let html='';
   for(let i=0;i<_vendaItens.length;i++){const it=_vendaItens[i];
     const opts=S.produtos.map(p=>{const est=getEstoqueProduto(p.id);const disabled=est<=0;return`<option value="${esc(p.id)}" ${p.id===it.produtoId?'selected':''} ${disabled?'disabled style="color:#64748b"':''}>${disabled?'🚫 ':'✅ '}${esc(p.nome)} (est: ${est})</option>`;}).join('');
-    html+=`<div class="venda-item-row" id="vi-${i}"><select onchange="updateVendaItem(${i},this.value,null)"><option value="">Selecione produto…</option>${opts}</select><input type="number" min="1" value="${it.qtd}" placeholder="Qtd" style="width:70px" onchange="updateVendaItem(${i},null,this.value)"><input type="number" step="0.01" value="${it.preco}" placeholder="Preço unit." style="width:100px" onchange="updateVendaItem(${i},null,null,this.value)"><button class="btn-action danger" style="padding:4px 10px" onclick="removeVendaItem(${i})">×</button></div>`;
+    html+=`<div class="venda-item-row" id="vi-${i}"><div style="flex:1;display:flex;flex-direction:column;gap:2px"><label style="font-size:10px;color:#64748b;font-weight:600">Produto</label><select onchange="updateVendaItem(${i},this.value,null)"><option value="">Selecione…</option>${opts}</select></div><div style="display:flex;flex-direction:column;gap:2px;width:70px"><label style="font-size:10px;color:#64748b;font-weight:600">Qtd</label><input type="number" min="1" value="${it.qtd}" style="width:70px" onchange="updateVendaItem(${i},null,this.value)"></div><div style="display:flex;flex-direction:column;gap:2px;width:100px"><label style="font-size:10px;color:#64748b;font-weight:600">Preço Unit.</label><input type="number" step="0.01" value="${it.preco}" style="width:100px" onchange="updateVendaItem(${i},null,null,this.value)"></div><button class="btn-action danger" style="padding:4px 10px;margin-bottom:0;align-self:flex-end" onclick="removeVendaItem(${i})">×</button></div>`;
   }
   el.innerHTML=html;calcVendaTotal();
 }
@@ -357,21 +357,23 @@ function calcVendaTotal(){const el=document.getElementById('v-total');if(!el)ret
 
 window.openVendaModal=function(id){
   const v=id?S.vendas.find(x=>x.id===id):null;
-  _vendaItens=v&&v.itens?v.itens.map(i=>({...i})):[];
+  _vendaItens=v&&v.itens?v.itens.map(i=>({...i})):[{produtoId:'',nome:'',qtd:1,preco:0,entradaId:''}];
   const cliOpts=S.clientes.map(c=>`<option value="${esc(c.id)}" ${v&&v.clienteId===c.id?'selected':''}>${esc(c.nome)}</option>`).join('');
+  let nextCod='V001';
+  if(!id&&S.vendas.length){const nums=S.vendas.map(x=>{const m=x.codigo?.match(/(\d+)/);return m?parseInt(m[1]):0;}).filter(n=>n>0);const max=Math.max(...nums);nextCod='V'+String(max+1).padStart(3,'0');}
   document.getElementById('modal-ttl').textContent=id?'Editar Venda':'Nova Venda';
   document.getElementById('modal-body').innerHTML=`<div class="form-grid">
     <div class="form-group full"><label>Cliente</label><select id="v-cli"><option value="">Selecione…</option>${cliOpts}</select></div>
-    <div class="form-group"><label>Código</label><input id="v-cod" value="${esc(v?.codigo||'')}" placeholder="Ex: V001"></div>
-    <div class="form-group"><label>Data</label><input id="v-data" type="text" placeholder="DD/MM/AAAA" value="${fmtDInput(v?.data)}"></div>
-    <div class="form-group"><label>Status</label><select id="v-status"><option value="pendente" ${v?.status==='pendente'?'selected':''}>Pendente</option><option value="pago" ${v?.status==='pago'?'selected':''}>Pago</option><option value="entregue" ${v?.status==='entregue'?'selected':''}>Entregue</option><option value="cancelado" ${v?.status==='cancelado'?'selected':''}>Cancelado</option></select></div>
-    <div class="form-group full"><label>Forma de Pagamento</label><select id="v-pag"><option value="">Selecione…</option><option value="Dinheiro" ${v?.formaPagamento==='Dinheiro'?'selected':''}>Dinheiro</option><option value="PIX" ${v?.formaPagamento==='PIX'?'selected':''}>PIX</option><option value="Cartão de Crédito" ${v?.formaPagamento==='Cartão de Crédito'?'selected':''}>Cartão de Crédito</option><option value="Cartão de Débito" ${v?.formaPagamento==='Cartão de Débito'?'selected':''}>Cartão de Débito</option><option value="Transferência" ${v?.formaPagamento==='Transferência'?'selected':''}>Transferência</option><option value="Boleto" ${v?.formaPagamento==='Boleto'?'selected':''}>Boleto</option><option value="Outro" ${v?.formaPagamento==='Outro'?'selected':''}>Outro</option></select></div>
-    <div class="form-group full"><label>Desconto</label><div class="disc-row"><select id="v-disc-tipo" onchange="calcVendaTotal()"><option value="valor" ${(v?.descontoTipo||'')==='valor'?'selected':''}>R$</option><option value="%" ${(v?.descontoTipo||'')==='%'?'selected':''}>%</option></select><input id="v-disc-val" type="number" step="0.01" placeholder="0,00" value="${v?.descontoValor||0}" oninput="calcVendaTotal()"></div></div>
-    <div class="form-group full"><label>Observações</label><textarea id="v-obs" rows="2">${esc(v?.observacoes||'')}</textarea></div>
+    <div style="margin:10px 0 6px;font-size:13px;font-weight:700;color:#94a3b8">Itens da Venda</div>
+    <div id="v-itens"></div>
+    <div style="margin-top:6px"><button class="btn-action secondary" style="padding:6px 12px;font-size:12px" onclick="addVendaItem()">+ Adicionar Item</button></div>
+    <div class="form-group" style="margin-top:10px"><label>Código</label><input id="v-cod" value="${esc(v?.codigo||nextCod)}" readonly style="background:#0b1220;color:#64748b;cursor:not-allowed"></div>
+    <div class="form-group" style="margin-top:10px"><label>Data</label><input id="v-data" type="text" placeholder="DD/MM/AAAA" value="${fmtDInput(v?.data)}"></div>
+    <div class="form-group" style="margin-top:10px"><label>Status</label><select id="v-status"><option value="pendente" ${v?.status==='pendente'?'selected':''}>Pendente</option><option value="pago" ${v?.status==='pago'?'selected':''}>Pago</option><option value="entregue" ${v?.status==='entregue'?'selected':''}>Entregue</option><option value="cancelado" ${v?.status==='cancelado'?'selected':''}>Cancelado</option></select></div>
+    <div class="form-group full" style="margin-top:10px"><label>Forma de Pagamento</label><select id="v-pag"><option value="">Selecione…</option><option value="Dinheiro" ${v?.formaPagamento==='Dinheiro'?'selected':''}>Dinheiro</option><option value="PIX" ${v?.formaPagamento==='PIX'?'selected':''}>PIX</option><option value="Cartão de Crédito" ${v?.formaPagamento==='Cartão de Crédito'?'selected':''}>Cartão de Crédito</option><option value="Cartão de Débito" ${v?.formaPagamento==='Cartão de Débito'?'selected':''}>Cartão de Débito</option><option value="Transferência" ${v?.formaPagamento==='Transferência'?'selected':''}>Transferência</option><option value="Boleto" ${v?.formaPagamento==='Boleto'?'selected':''}>Boleto</option><option value="Outro" ${v?.formaPagamento==='Outro'?'selected':''}>Outro</option></select></div>
+    <div class="form-group full" style="margin-top:10px"><label>Desconto</label><div class="disc-row"><select id="v-disc-tipo" onchange="calcVendaTotal()"><option value="valor" ${(v?.descontoTipo||'')==='valor'?'selected':''}>R$</option><option value="%" ${(v?.descontoTipo||'')==='%'?'selected':''}>%</option></select><input id="v-disc-val" type="number" step="0.01" placeholder="0,00" value="${v?.descontoValor||0}" oninput="calcVendaTotal()"></div></div>
+    <div class="form-group full" style="margin-top:10px"><label>Observações</label><textarea id="v-obs" rows="2">${esc(v?.observacoes||'')}</textarea></div>
   </div>
-  <div style="margin:14px 0 6px;font-size:13px;font-weight:700;color:#94a3b8">Itens da Venda</div>
-  <div id="v-itens"></div>
-  <div style="margin-top:6px"><button class="btn-action secondary" style="padding:6px 12px;font-size:12px" onclick="addVendaItem()">+ Adicionar Item</button></div>
   <div style="text-align:right;margin-top:10px;font-size:18px;font-weight:800">Total: <span id="v-total">${fmtN(v?.totalComDesconto||v?.total||0)}</span></div>
   <div class="modal-actions">
     <button class="btn-action secondary" onclick="closeModal()">Cancelar</button>
