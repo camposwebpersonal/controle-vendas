@@ -39,8 +39,10 @@ tr:hover td{background:rgba(59,130,246,.04)}
 .btn-action.secondary{background:var(--card);border:1px solid var(--border);color:var(--text)}
 .btn-action.danger{background:linear-gradient(135deg,#dc2626,#991b1b)}
 .empty{text-align:center;padding:40px;color:var(--muted);font-size:14px}
-.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:1000;align-items:center;justify-content:center;padding:20px}
-.modal-box{background:var(--card);border:1px solid var(--border);border-radius:16px;max-width:720px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.4)}@media(max-width:640px){.modal-box{max-width:95vw}.venda-item-row{flex-wrap:wrap;gap:8px}}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:1000;align-items:center;justify-content:center;padding:20px;overflow-x:hidden}
+.modal-box{background:var(--card);border:1px solid var(--border);border-radius:16px;max-width:720px;width:100%;max-height:90vh;overflow-y:auto;overflow-x:hidden;box-shadow:0 20px 60px rgba(0,0,0,.4)}
+.venda-item-row{flex-wrap:wrap}
+@media(max-width:640px){.modal-overlay{padding:8px}.modal-box{max-width:95vw;border-radius:12px}.venda-item-row{flex-direction:column;gap:8px}.venda-item-row>div{width:100%!important}.venda-item-row select,.venda-item-row input{width:100%!important}}
 .modal-head{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid var(--border)}
 .modal-title{font-size:16px;font-weight:700}
 .modal-close{background:none;border:none;color:var(--muted);font-size:22px;cursor:pointer;padding:0 4px}
@@ -346,7 +348,7 @@ function refreshVendaItens(){
       if(!ents.length){opts+=`<option value="${esc(p.id)}" disabled style="color:#64748b">🚫 ${esc(p.nome)} (sem estoque)</option>`;}
       else{for(const e of ents){const sel=(e.id===it.entradaId&&p.id===it.produtoId)?'selected':'';opts+=`<option value="${esc(p.id)}" data-entrada="${esc(e.id)}" data-preco="${e.precoVenda}" ${sel}>✅ ${esc(p.nome)} - ${fmtN(e.precoVenda)} (est: ${e.quantidade})</option>`;}}
     }
-    html+=`<div class="venda-item-row" id="vi-${i}"><div style="flex:1;min-width:180px;display:flex;flex-direction:column;gap:2px"><label style="font-size:10px;color:#64748b;font-weight:600">Produto / Preço</label><select onchange="updateVendaItemSelect(${i},this)"><option value="">Selecione…</option>${opts}</select></div><div style="display:flex;flex-direction:column;gap:2px;width:70px"><label style="font-size:10px;color:#64748b;font-weight:600">Qtd</label><input type="number" min="1" value="${it.qtd}" style="width:70px" onchange="updateVendaItem(${i},null,this.value)"></div><div style="display:flex;flex-direction:column;gap:2px;width:110px"><label style="font-size:10px;color:#64748b;font-weight:600">Preço Unit.</label><input type="number" step="0.01" value="${it.preco}" style="width:110px" onchange="updateVendaItem(${i},null,null,this.value)"></div><button class="btn-action danger" style="padding:4px 10px;margin-bottom:0;align-self:flex-end" onclick="removeVendaItem(${i})">×</button></div>`;
+    html+=`<div class="venda-item-row" id="vi-${i}"><div style="flex:2;min-width:120px;display:flex;flex-direction:column;gap:2px"><label style="font-size:10px;color:#64748b;font-weight:600">Produto / Preço</label><select onchange="updateVendaItemSelect(${i},this)" style="width:100%;box-sizing:border-box"><option value="">Selecione…</option>${opts}</select></div><div style="flex:0 0 60px;display:flex;flex-direction:column;gap:2px"><label style="font-size:10px;color:#64748b;font-weight:600">Qtd</label><input type="number" min="1" value="${it.qtd}" style="width:100%;box-sizing:border-box" onchange="updateVendaItem(${i},null,this.value)"></div><div style="flex:0 0 100px;display:flex;flex-direction:column;gap:2px"><label style="font-size:10px;color:#64748b;font-weight:600">Preço Unit.</label><input type="number" step="0.01" value="${it.preco}" style="width:100%;box-sizing:border-box" onchange="updateVendaItem(${i},null,null,this.value)"></div><button class="btn-action danger" style="padding:4px 10px;margin-bottom:0;align-self:flex-end" onclick="removeVendaItem(${i})">×</button></div>`;
   }
   el.innerHTML=html;calcVendaTotal();
 }
