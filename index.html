@@ -398,8 +398,7 @@ window.openVendaModal=function(id){
 };
 
 window.saveVenda=async(id)=>{
-  const clienteId=document.getElementById('v-cli').value;
-  if(!clienteId){toast('Selecione um cliente.','error');return;}
+  const clienteId=document.getElementById('v-cli').value||'';
   const cliente=S.clientes.find(c=>c.id===clienteId);
   const itens=_vendaItens.filter(i=>i.produtoId&&i.qtd>0);
   if(!itens.length){toast('Adicione pelo menos um item.','error');return;}
