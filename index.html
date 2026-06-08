@@ -40,7 +40,7 @@ tr:hover td{background:rgba(59,130,246,.04)}
 .btn-action.danger{background:linear-gradient(135deg,#dc2626,#991b1b)}
 .empty{text-align:center;padding:40px;color:var(--muted);font-size:14px}
 .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:1000;align-items:center;justify-content:center;padding:20px}
-.modal-box{background:var(--card);border:1px solid var(--border);border-radius:16px;max-width:560px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.4)}
+.modal-box{background:var(--card);border:1px solid var(--border);border-radius:16px;max-width:720px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.4)}@media(max-width:640px){.modal-box{max-width:95vw}.venda-item-row{flex-wrap:wrap;gap:8px}}
 .modal-head{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid var(--border)}
 .modal-title{font-size:16px;font-weight:700}
 .modal-close{background:none;border:none;color:var(--muted);font-size:22px;cursor:pointer;padding:0 4px}
@@ -340,11 +340,26 @@ function refreshVendaItens(){
   const el=document.getElementById('v-itens');if(!el)return;
   let html='';
   for(let i=0;i<_vendaItens.length;i++){const it=_vendaItens[i];
-    const opts=S.produtos.map(p=>{const est=getEstoqueProduto(p.id);const disabled=est<=0;return`<option value="${esc(p.id)}" ${p.id===it.produtoId?'selected':''} ${disabled?'disabled style="color:#64748b"':''}>${disabled?'🚫 ':'✅ '}${esc(p.nome)} (est: ${est})</option>`;}).join('');
-    html+=`<div class="venda-item-row" id="vi-${i}"><div style="flex:1;display:flex;flex-direction:column;gap:2px"><label style="font-size:10px;color:#64748b;font-weight:600">Produto</label><select onchange="updateVendaItem(${i},this.value,null)"><option value="">Selecione…</option>${opts}</select></div><div style="display:flex;flex-direction:column;gap:2px;width:70px"><label style="font-size:10px;color:#64748b;font-weight:600">Qtd</label><input type="number" min="1" value="${it.qtd}" style="width:70px" onchange="updateVendaItem(${i},null,this.value)"></div><div style="display:flex;flex-direction:column;gap:2px;width:100px"><label style="font-size:10px;color:#64748b;font-weight:600">Preço Unit.</label><input type="number" step="0.01" value="${it.preco}" style="width:100px" onchange="updateVendaItem(${i},null,null,this.value)"></div><button class="btn-action danger" style="padding:4px 10px;margin-bottom:0;align-self:flex-end" onclick="removeVendaItem(${i})">×</button></div>`;
+    let opts='';
+    for(const p of S.produtos){
+      const ents=getEntradasProduto(p.id).filter(e=>e.quantidade>0);
+      if(!ents.length){opts+=`<option value="${esc(p.id)}" disabled style="color:#64748b">🚫 ${esc(p.nome)} (sem estoque)</option>`;}
+      else{for(const e of ents){const sel=(e.id===it.entradaId&&p.id===it.produtoId)?'selected':'';opts+=`<option value="${esc(p.id)}" data-entrada="${esc(e.id)}" data-preco="${e.precoVenda}" ${sel}>✅ ${esc(p.nome)} - ${fmtN(e.precoVenda)} (est: ${e.quantidade})</option>`;}}
+    }
+    html+=`<div class="venda-item-row" id="vi-${i}"><div style="flex:1;min-width:180px;display:flex;flex-direction:column;gap:2px"><label style="font-size:10px;color:#64748b;font-weight:600">Produto / Preço</label><select onchange="updateVendaItemSelect(${i},this)"><option value="">Selecione…</option>${opts}</select></div><div style="display:flex;flex-direction:column;gap:2px;width:70px"><label style="font-size:10px;color:#64748b;font-weight:600">Qtd</label><input type="number" min="1" value="${it.qtd}" style="width:70px" onchange="updateVendaItem(${i},null,this.value)"></div><div style="display:flex;flex-direction:column;gap:2px;width:110px"><label style="font-size:10px;color:#64748b;font-weight:600">Preço Unit.</label><input type="number" step="0.01" value="${it.preco}" style="width:110px" onchange="updateVendaItem(${i},null,null,this.value)"></div><button class="btn-action danger" style="padding:4px 10px;margin-bottom:0;align-self:flex-end" onclick="removeVendaItem(${i})">×</button></div>`;
   }
   el.innerHTML=html;calcVendaTotal();
 }
+window.updateVendaItemSelect=function(idx,selectEl){
+  const opt=selectEl.options[selectEl.selectedIndex];
+  const prodId=opt.value;if(!prodId)return;
+  const p=S.produtos.find(x=>x.id===prodId);
+  if(p)_vendaItens[idx].nome=p.nome;
+  _vendaItens[idx].produtoId=prodId;
+  _vendaItens[idx].entradaId=opt.dataset.entrada||'';
+  _vendaItens[idx].preco=Number(opt.dataset.preco)||0;
+  refreshVendaItens();
+};
 window.updateVendaItem=function(idx,prodId,qtd,preco){
   if(prodId){_vendaItens[idx].produtoId=prodId;const p=S.produtos.find(x=>x.id===prodId);if(p){_vendaItens[idx].nome=p.nome;const ents=getEntradasProduto(p.id);if(ents.length){_vendaItens[idx].preco=ents[0].precoVenda;_vendaItens[idx].entradaId=ents[0].id;}}}
   if(qtd!==null)_vendaItens[idx].qtd=Math.max(1,Number(qtd)||1);
