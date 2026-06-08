@@ -363,9 +363,9 @@ window.updateVendaItemSelect=function(idx,selectEl){
   refreshVendaItens();
 };
 window.updateVendaItem=function(idx,prodId,qtd,preco){
-  if(prodId){_vendaItens[idx].produtoId=prodId;const p=S.produtos.find(x=>x.id===prodId);if(p){_vendaItens[idx].nome=p.nome;const ents=getEntradasProduto(p.id);if(ents.length){_vendaItens[idx].preco=ents[0].precoVenda;_vendaItens[idx].entradaId=ents[0].id;}}}
-  if(qtd!==null)_vendaItens[idx].qtd=Math.max(1,Number(qtd)||1);
-  if(preco!==null)_vendaItens[idx].preco=Math.max(0,Number(preco)||0);
+  if(prodId!=null){_vendaItens[idx].produtoId=prodId;const p=S.produtos.find(x=>x.id===prodId);if(p){_vendaItens[idx].nome=p.nome;const ents=getEntradasProduto(p.id);if(ents.length){_vendaItens[idx].preco=ents[0].precoVenda;_vendaItens[idx].entradaId=ents[0].id;}}}
+  if(qtd!=null)_vendaItens[idx].qtd=Math.max(1,Number(qtd)||1);
+  if(preco!=null)_vendaItens[idx].preco=Math.max(0,Number(preco)||0);
   refreshVendaItens();
 };
 window.removeVendaItem=function(idx){_vendaItens.splice(idx,1);refreshVendaItens();};
